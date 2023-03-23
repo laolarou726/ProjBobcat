@@ -88,4 +88,18 @@ public static class SystemInfoHelper
             return string.Empty;
         }
     }
+
+    static string GetOsVersion()
+    {
+        string OsVersion = "null";
+#if WINDOWS
+        SystemInfo.WindowsSystemVersion vw = new();
+        OsVersion = vw.ToString();
+#elif OSX
+
+#elif LINUX
+
+#endif
+        return OsVersion;
+    }
 }

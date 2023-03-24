@@ -5,14 +5,14 @@ namespace ProjBobcat.Class.Helper
 {
 	public static class CommandLineHelper
 	{
-		public static string RunCMD(string Head, string Flags)
+		public static string RunCMD(string head, string flags)
 		{
 			try
 			{
 				ProcessStartInfo i = new()
 				{
-					FileName = Head,
-					Arguments = Flags,
+					FileName = head,
+					Arguments = flags,
 					RedirectStandardOutput = true,
 					CreateNoWindow = true,
 				};
@@ -28,7 +28,7 @@ namespace ProjBobcat.Class.Helper
 			return "null";
 		}
 		//
-		public static string RunBash(string Command)
+		public static string RunBash(string command)
 		{
 			///<summary>供Linux和macOS使用的Bash(macOS默认使用zsh)</summary>
 			///
@@ -36,7 +36,7 @@ namespace ProjBobcat.Class.Helper
 
 			try
 			{
-				string FixedCommand = Command.Replace("\"", "\\\"");
+				command = command.Replace("\"", "\\\"");
 				Process proc = new()
 				{
 					StartInfo = new ProcessStartInfo
@@ -46,7 +46,7 @@ namespace ProjBobcat.Class.Helper
 #elif LINUX
 						FileName = "/bin/bash",
 #endif
-						Arguments = $"-c \"{FixedCommand}\"",
+						Arguments = $"-c \"{command}\"",
 						RedirectStandardOutput = true,
 						UseShellExecute = false,
 						CreateNoWindow = true,
@@ -67,14 +67,14 @@ namespace ProjBobcat.Class.Helper
 			return "null";
 		}
 		//
-		public static string RunBashArgs(string CommandHead, string[] Args)
+		public static string RunBashArgs(string commandHead, string[] args)
 		{
 			string Arg = "";
-			foreach(var arg in Args)
+			foreach(var arg in args)
 			{
 				Arg += (" " + arg);
 			}
-			return RunBash(CommandHead + Arg);
+			return RunBash(commandHead + Arg);
 
 		}
 

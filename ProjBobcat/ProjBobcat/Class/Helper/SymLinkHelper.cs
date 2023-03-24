@@ -62,13 +62,12 @@ namespace ProjBobcat.Class.Helper
 		public bool RemoveLink(string targetLink)
 		{
             string? CmdReturn = "";
-
             try
             {
 #if WINDOWS
 			CmdReturn = CommandLineHelper.RunCMD("erase", $"/Q {targetLink}");
 #elif OSX
-                CmdReturn = CommandLineHelper.RunBash($"rm -rf {targetLink}");
+            CmdReturn = CommandLineHelper.RunBash($"rm -rf {targetLink}");
 #elif LINUX
 			CmdReturn = CommandLineHelper.RunBash($"unlink {targetLink}");
 #endif
@@ -94,4 +93,3 @@ namespace ProjBobcat.Class.Helper
 		}
 	}
 }
-

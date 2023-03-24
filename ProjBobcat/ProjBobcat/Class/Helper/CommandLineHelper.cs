@@ -20,8 +20,8 @@ namespace ProjBobcat.Class.Helper
 				{
 					return proc.StandardOutput.ReadToEnd();
 				}
-
-			}catch(Exception ex)
+			}
+			catch(Exception ex)
 			{
 				return ex.ToString();
 			}
@@ -75,9 +75,6 @@ namespace ProjBobcat.Class.Helper
 				Arg += (" " + arg);
 			}
 			return RunBash(commandHead + Arg);
-
 		}
-
 	}
 }
-

@@ -6,7 +6,6 @@ namespace ProjBobcat.Class.Helper
 		/// <summary>
 		/// 符号链接创建工具
 		/// </summary>
-
 		private string _defaultPublicResourceLocation;
 
 		public bool CreateLink(string targetItem, string? overrideDefaultLocation = null, bool? parseToWindowsPath = null)
@@ -38,9 +37,8 @@ namespace ProjBobcat.Class.Helper
 			}
             string? CmdReturn = "";
             try {
-				
 #if WINDOWS
-		// 原来从vista就自带mklink了哇 那就不考虑junction工具了.
+		    // 原来从vista就自带mklink了哇 那就不考虑junction工具了.
 			CmdReturn = CommandLineHelper.RunCMD("mklink", $"/d {targetItem} {ThisDefaultLocation}");
 			//? 待验证: /d与/h是否: 跨分区, 增加占用, 可被Minecraft识别
 #elif OSX
@@ -58,8 +56,7 @@ namespace ProjBobcat.Class.Helper
 			}
 
 			if (CmdReturn.Contains("nvalid")) return false; // 收集可能的错误信息. 但是返回信息可能是不同的语言, 考虑移除...
-
-            return true;
+            else return true;
 		}
 
 		public bool RemoveLink(string targetLink)
@@ -68,17 +65,12 @@ namespace ProjBobcat.Class.Helper
 
             try
             {
-
 #if WINDOWS
-		// 原来从vista就自带mklink了哇 那就不考虑junction工具了.
 			CmdReturn = CommandLineHelper.RunCMD("erase", $"/Q {targetLink}");
-			//? 待验证: /d与/h是否: 跨分区, 增加占用, 可被Minecraft识别
 #elif OSX
                 CmdReturn = CommandLineHelper.RunBash($"rm -rf {targetLink}");
-                // 一般而言, mac与linux用户可以不考虑跨分区问题. 可以在确认软链接可以被minecraft识别后直接全部软链接
 #elif LINUX
 			CmdReturn = CommandLineHelper.RunBash($"unlink {targetLink}");
-			// 这应该||就好了吧……不确定
 #endif
             }
             catch (Exception ex)
@@ -98,9 +90,7 @@ namespace ProjBobcat.Class.Helper
 			/// <param name="defaultLocation">
 			///	创建对象时候存入默认的存储共享资源(软链创建点)的路径.
 			/// </param>
-			///
 			_defaultPublicResourceLocation = defaultLocation;
-			
 		}
 	}
 }

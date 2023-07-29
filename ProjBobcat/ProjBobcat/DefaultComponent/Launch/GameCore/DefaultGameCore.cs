@@ -158,7 +158,7 @@ public sealed class DefaultGameCore : GameCoreBase
                     {
                         Cause = "未找到JRE运行时，可能是输入的路劲为空或出错，亦或是指定的文件并不存在。",
                         Error = "未找到JRE运行时",
-                        ErrorMessage = "输入的路劲为空或出错，亦或是指定的文件并不存在"
+                        ErrorMessage = "输入的路径为空或出错，亦或是指定的文件并不存在"
                     }
                 };
 

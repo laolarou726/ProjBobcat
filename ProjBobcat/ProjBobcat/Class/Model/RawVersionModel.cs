@@ -199,13 +199,13 @@ public class RawVersionModel
     ///     发布时间
     /// </summary>
     [JsonPropertyName("releaseTime")]
-    public DateTime ReleaseTime { get; set; }
+    public DateTime? ReleaseTime { get; set; }
 
     /// <summary>
     ///     时间
     /// </summary>
     [JsonPropertyName("time")]
-    public DateTime Time { get; set; }
+    public DateTime? Time { get; set; }
 
     /// <summary>
     ///     类型
@@ -218,4 +218,9 @@ public class RawVersionModel
     /// </summary>
     [JsonPropertyName("jar")]
     public string? JarFile { get; set; }
+}
+
+[JsonSerializable(typeof(RawVersionModel))]
+public partial class RawVersionModelContext : JsonSerializerContext
+{
 }

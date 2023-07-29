@@ -22,7 +22,6 @@ public enum CrashCauses
 
     #region GPU
 
-    
     UnableToSetPixelFormat,
     UnsupportedIntelDriver, // https://bugs.mojang.com/browse/MC-32606
     UnsupportedAmdDriver, // https://bugs.mojang.com/browse/MC-31618
@@ -40,7 +39,6 @@ public enum CrashCauses
     ModInitFailed,
     ModIdExceeded,
     DuplicateMod,
-    ModNameFoundInStackAnalysis,
 
     #endregion
 
@@ -72,8 +70,6 @@ public enum CrashCauses
     IncorrectPathEncodingOrMainClassNotFound,
     ManuallyTriggeredDebugCrash,
     ContentValidationFailed,
-    KeywordFoundInStackAnalysis,
-    KeywordFoundInGameStackAnalysis,
     BlockCausedGameCrash,
     EntityCausedGameCrash,
     LogFileNotFound,

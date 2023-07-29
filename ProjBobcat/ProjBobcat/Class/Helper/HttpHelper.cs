@@ -12,16 +12,22 @@ namespace ProjBobcat.Class.Helper;
 /// <summary>
 ///     Http工具方法类
 /// </summary>
-public static class HttpHelper
+public static partial class HttpHelper
 {
     const string UriRegexStr =
         "((([A-Za-z]{3,9}:(?:\\/\\/)?)(?:[-;:&=\\+$,\\w]+@)?[A-Za-z0-9.-]+(:[0-9]+)?|(?:ww‌​w.|[-;:&=\\+$,\\w]+@)[A-Za-z0-9.-]+)((?:\\/[\\+~%\\/.\\w-_]*)?\\??(?:[-\\+=&;%@.\\w_]*)#?‌​(?:[\\w]*))?)";
 
-#pragma warning disable SYSLIB1045 // 转换为“GeneratedRegexAttribute”。
-    static readonly Regex UriRegex = new(UriRegexStr, RegexOptions.Compiled);
-#pragma warning restore SYSLIB1045 // 转换为“GeneratedRegexAttribute”。
+#if NET7_0_OR_GREATER
+    [GeneratedRegex("((([A-Za-z]{3,9}:(?:\\/\\/)?)(?:[-;:&=\\+$,\\w]+@)?[A-Za-z0-9.-]+(:[0-9]+)?|(?:ww‌​w.|[-;:&=\\+$,\\w]+@)[A-Za-z0-9.-]+)((?:\\/[\\+~%\\/.\\w-_]*)?\\??(?:[-\\+=&;%@.\\w_]*)#?‌​(?:[\\w]*))?)")]
+    private static partial Regex UriRegex();
 
-    static HttpClient Client => HttpClientHelper.GetNewClient(HttpClientHelper.DefaultClientName);
+#else
+
+    static readonly Regex UriRegex = new(UriRegexStr, RegexOptions.Compiled);
+
+#endif
+
+    static HttpClient Client => HttpClientHelper.DefaultClient;
 
     /// <summary>
     ///     正则匹配Uri
@@ -30,7 +36,11 @@ public static class HttpHelper
     /// <returns>匹配的Uri</returns>
     public static string RegexMatchUri(string uri)
     {
+#if NET7_0_OR_GREATER
+        return UriRegex().Match(uri).Value;
+#else
         return UriRegex.Match(uri).Value;
+#endif
     }
 
     /// <summary>

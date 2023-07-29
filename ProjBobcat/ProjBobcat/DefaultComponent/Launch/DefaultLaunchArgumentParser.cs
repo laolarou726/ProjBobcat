@@ -8,6 +8,7 @@ using ProjBobcat.Class;
 using ProjBobcat.Class.Helper;
 using ProjBobcat.Class.Model;
 using ProjBobcat.Class.Model.Auth;
+using ProjBobcat.Class.Model.JsonContexts;
 using ProjBobcat.Interface;
 
 namespace ProjBobcat.DefaultComponent.Launch;
@@ -15,8 +16,6 @@ namespace ProjBobcat.DefaultComponent.Launch;
 public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentParser
 {
     readonly LaunchSettings _launchSettings;
-
-    public bool EnableXmlLoggingOutput { get; init; }
 
     /// <summary>
     ///     构造函数
@@ -45,7 +44,7 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
 
         var sb = new StringBuilder();
         foreach (var lib in VersionInfo.Libraries)
-            sb.Append($"{Path.Combine(RootPath, GamePathHelper.GetLibraryPath(lib.Path))};");
+            sb.Append($"{Path.Combine(RootPath, GamePathHelper.GetLibraryPath(lib.Path))}{Path.PathSeparator}");
 
 
         if (!VersionInfo.MainClass.Equals("cpw.mods.bootstraplauncher.BootstrapLauncher",
@@ -63,6 +62,8 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
         ClassPath = sb.ToString();
         LastAuthResult = LaunchSettings.Authenticator.GetLastAuthResult();
     }
+
+    public bool EnableXmlLoggingOutput { get; init; }
 
     public IEnumerable<string> ParseJvmHeadArguments()
     {
@@ -131,7 +132,7 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
             { "${launcher_name}", $"\"{LaunchSettings.LauncherName}\"" },
             { "${launcher_version}", "32" },
             { "${classpath}", $"\"{ClassPath}\"" },
-            { "${classpath_separator}", ";" },
+            { "${classpath_separator}", Path.PathSeparator.ToString() },
             { "${library_directory}", $"\"{Path.Combine(RootPath, GamePathHelper.GetLibraryRootPath())}\"" }
         };
 
@@ -199,7 +200,10 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
                 "${classpath}"
             ]
             """;
-        var preJvmArguments = VersionLocator.ParseJvmArguments(JsonSerializer.Deserialize<JsonElement[]>(preset)!);
+
+        var preJvmArguments =
+            VersionLocator.ParseJvmArguments(JsonSerializer.Deserialize(preset,
+                JsonElementContext.Default.JsonElementArray)!);
 
         foreach (var preJvmArg in preJvmArguments)
             yield return StringHelper.ReplaceByDic(preJvmArg, jvmArgumentsDic);
@@ -210,7 +214,8 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
         var gameDir = _launchSettings.VersionInsulation
             ? Path.Combine(RootPath, GamePathHelper.GetGamePath(LaunchSettings.Version))
             : RootPath;
-        var clientIdUpper = (VersionLocator?.LauncherProfileParser?.LauncherProfile?.ClientToken ?? Guid.Empty.ToString("D"))
+        var clientIdUpper = (VersionLocator?.LauncherProfileParser?.LauncherProfile?.ClientToken ??
+                             Guid.Empty.ToString("D"))
             .Replace("-", string.Empty).ToUpper();
         var clientIdBytes = Encoding.ASCII.GetBytes(clientIdUpper);
         var clientId = Convert.ToBase64String(clientIdBytes);
@@ -220,7 +225,9 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
             MicrosoftAuthResult => "msa",
             _ => "Mojang"
         };
-        var xuid = authResult is MicrosoftAuthResult microsoftAuthResult ? microsoftAuthResult.XBoxUid : Guid.Empty.ToString("N");
+        var xuid = authResult is MicrosoftAuthResult microsoftAuthResult
+            ? microsoftAuthResult.XBoxUid
+            : Guid.Empty.ToString("N");
 
         var mcArgumentsDic = new Dictionary<string, string>
         {
@@ -257,7 +264,7 @@ public class DefaultLaunchArgumentParser : LaunchArgumentParserBase, IArgumentPa
         arguments.AddRange(ParseJvmHeadArguments());
         arguments.AddRange(ParseJvmArguments());
 
-        if(EnableXmlLoggingOutput)
+        if (EnableXmlLoggingOutput)
             arguments.AddRange(ParseGameLoggingArguments());
 
         arguments.Add(VersionInfo.MainClass);

@@ -20,9 +20,9 @@
 
 由日冕工作室开发和维护。
 
-## Stats
+## Native AOT （提前编译为本地代码） 支持
 
-![Alt](https://repobeats.axiom.co/api/embed/d8d56d4c2023d90ea067d5b3ca83ed5da4979289.svg "Repobeats analytics image")
+ProjBobcat 为 [NativeAot](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/) 提供全面支持。Native AOT 应用程序启动非常快，并且使用较少的内存。应用程序的用户可以在没有安装 .NET 运行时的机器上运行它。如果你想在你的项目中使用Native AOT，请将你的目标框架切换到 **net7.0 或更高版本**。
 
 ## 跨平台支持
 
@@ -31,8 +31,8 @@
 |平台|状态|
 |:------:|:----:|
 |Windows |  ✅ |
-|macOS |  ✅ |
-|Linux |  制作中 |
+|macOS |  ✅   |
+|Linux |  ✅   |
 
 ## [广告] 一个超牛逼的Typescript启动核心
 [仓库链接](https://github.com/Voxelum/minecraft-launcher-core-node)
@@ -52,8 +52,9 @@ All you need for minecraft launcher in typescript. https://voxelum.github.io/min
 + 日冕开发组官方审核群：1040526762
 
 ## 安装前提醒
-+ 由于 Projbobcat 使用了来自 .NET Core 和 .NET 5.0+ 的诸多最新语言特性。如果您想使用本项目，您需要将您的项目框架版本设置为 **.NET 5 或更高版本**。
++ 由于 Projbobcat 使用了来自 .NET Core 和 .NET 6.0+ 的诸多最新语言特性。如果您想使用本项目，您需要将您的项目框架版本设置为 **.NET 6 或更高版本**。
 + 由于.NET的默认连接数限制，您需要手动覆盖掉默认的连接数才能保证 <DownloadHelper> 中的部分方法正常执行，您可以在App.xaml.cs或程序入口点添加下面的代码来完成修改（最大值不宜超过1024）
+
   ```c#
   using System.Net;
   
@@ -63,15 +64,10 @@ All you need for minecraft launcher in typescript. https://voxelum.github.io/min
 ## 安装方法
 * 复制本项目源代码至您的解决方案中，然后在您的主项目添加引用。
 * 直接通过 Nuget 包管理器安装 ProjBobcat 或在包管理器控制台中执行以下命令
+
   ```
   Install-Package ProjBobcat
   ```
-* 你需要在主程序入口处添加以下两行代码 (通常是 App.xaml.cs 或其他):
-  ```c#
-  ServiceHelper.Init();
-  HttpClientHelper.Init();
-  ```
-
 
 ## 功能列表
 
@@ -123,7 +119,6 @@ var javaList = ProjBobcat.Class.Helper.SystemInfoHelper.FindJava(); // 返回一
 #### 初始化核心
 
 ```csharp
-
 var core = new DefaultGameCore
 {
   ClientToken = clientToken, // 游戏客户端识别码，你可以设置成你喜欢的任何GUID，例如88888888-8888-8888-8888-888888888888，或者自己随机生成一个！
@@ -135,17 +130,16 @@ var core = new DefaultGameCore
   },
   GameLogResolver = new DefaultGameLogResolver()
 };
-
 ```
 
 #### 扫描全部游戏
+
 ```csharp
-
 List<VersionInfo> gameList = core.VersionLocator.GetAllGames().ToList();
-
 ```
 
 #### 资源补全
+
 ```csharp
 // 这里使用mcbbs源，请自行修改以满足您的需求。
 var drc = new DefaultResourceCompleter
@@ -169,7 +163,6 @@ var drc = new DefaultResourceCompleter
 };
 
 await drc.CheckAndDownloadTaskAsync().ConfigureAwait(false);
-
 ```
 
 这里是一些您可以绑定的事件：
@@ -184,7 +177,6 @@ await drc.CheckAndDownloadTaskAsync().ConfigureAwait(false);
 #### 启动游戏前配置
 
 ```csharp
-
 var launchSettings = new LaunchSettings
 {
     FallBackGameArguments = new GameArguments // 游戏启动参数缺省值，适用于以该启动设置启动的所有游戏，对于具体的某个游戏，可以设置（见下）具体的启动参数，如果所设置的具体参数出现缺失，将使用这个补全
@@ -214,7 +206,6 @@ launchSettings.GameArguments = new GameArguments // （可选）具体游戏启�
     MinMemory = specificMinMemory, // 最小内存
     MaxMemory = specificMaxMemory // 最大内存
 };
-
 ```
 
 您可以在启动核心内注册以下事件来实现完整的日志记录
@@ -230,13 +221,11 @@ launchSettings.GameArguments = new GameArguments // （可选）具体游戏启�
 离线验证模型：
 
 ```csharp
-
 launchSettings.Authenticator = new OfflineAuthenticator
 {
     Username = "您的游戏名"
     LauncherAccountParser = core.VersionLocator.LauncherAccountParser // launcher_profiles.json解析组件
 };
-
 ```
 
 在线验证模型：
@@ -253,10 +242,12 @@ launchSettings.Authenticator = new YggdrasilAuthenticator
 #### 启动游戏
 
 ```csharp
-
 var result = await Core.LaunchTaskAsync(launchSettings).ConfigureAwait(true); // 返回游戏启动结果，以及异常信息（如果存在）
-
 ```
+
+## 统计
+
+![Alt](https://repobeats.axiom.co/api/embed/d8d56d4c2023d90ea067d5b3ca83ed5da4979289.svg "Repobeats analytics image")
 
 ## 免责声明
 ProjBobcat 不隶属于Mojang以及其附属软件的任何一部分。

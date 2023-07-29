@@ -12,26 +12,25 @@ namespace ProjBobcat.Class.Helper;
 /// </summary>
 public static class SystemInfoHelper
 {
-    public static CPUInfo GetProcessorUsage()
+    public static CPUInfo? GetProcessorUsage()
     {
 #if WINDOWS
-        return Platforms.Windows.SystemInfoHelper.GetWindowsCpuUsage()
-            .FirstOrDefault(i => i.Name.Equals("_Total", StringComparison.OrdinalIgnoreCase));
+        return Platforms.Windows.SystemInfoHelper.GetWindowsCpuUsage();
 #elif OSX
-        return Platforms.MacOS.SystemInfoHelper.GetOSXCpuUsage().FirstOrDefault();
+        return Platforms.MacOS.SystemInfoHelper.GetOSXCpuUsage();
 #elif LINUX
-        return Platforms.Linux.SystemInfoHelper.GetLinuxCpuUsage().FirstOrDefault();
+        return Platforms.Linux.SystemInfoHelper.GetLinuxCpuUsage();
 #else
         return null;
 #endif
     }
 
-    public static MemoryInfo GetMemoryUsage()
+    public static MemoryInfo? GetMemoryUsage()
     {
 #if WINDOWS
         return Platforms.Windows.SystemInfoHelper.GetWindowsMemoryStatus();
 #elif OSX
-        return Platforms.MacOS.SystemInfoHelper.GetOSXMemoryStatus();
+        return Platforms.MacOS.SystemInfoHelper.GetOsxMemoryStatus();
 #elif LINUX
         return Platforms.Linux.SystemInfoHelper.GetLinuxMemoryStatus();
 #else
@@ -50,6 +49,12 @@ public static class SystemInfoHelper
 #if WINDOWS
         foreach (var path in Platforms.Windows.SystemInfoHelper.FindJavaWindows())
             result.Add(path);
+#elif OSX
+        foreach (var path in Platforms.MacOS.SystemInfoHelper.FindJavaMacOS())
+            result.Add(path);
+#elif LINUX
+        foreach(var path in Platforms.Linux.SystemInfoHelper.FindJavaLinux())
+            result.Add(path);
 #endif
 
         foreach (var path in result)
@@ -60,7 +65,7 @@ public static class SystemInfoHelper
         var evJava = FindJavaUsingEnvironmentVariable();
 
         if (!string.IsNullOrEmpty(evJava))
-            yield return Path.Combine(evJava, "bin", Constants.JavaExecutable);
+            yield return Path.Combine(evJava, Constants.JavaExecutablePath);
     }
 
     static IEnumerable<string> FindJavaInOfficialGamePath()
@@ -69,11 +74,11 @@ public static class SystemInfoHelper
         var paths = new[] { "java-runtime-gamma", "java-runtime-alpha", "java-runtime-beta", "jre-legacy" };
 
         return paths
-            .Select(path => Path.Combine(basePath, path, "bin", Constants.JavaExecutable))
+            .Select(path => Path.Combine(basePath, path, Constants.JavaExecutablePath))
             .Where(File.Exists);
     }
 
-    static string FindJavaUsingEnvironmentVariable()
+    static string? FindJavaUsingEnvironmentVariable()
     {
         try
         {
@@ -85,7 +90,7 @@ public static class SystemInfoHelper
         }
         catch (Exception)
         {
-            return string.Empty;
+            return null;
         }
     }
 

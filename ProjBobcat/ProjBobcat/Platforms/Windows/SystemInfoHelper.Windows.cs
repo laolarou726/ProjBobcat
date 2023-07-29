@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Management;
 using Microsoft.Win32;
 using ProjBobcat.Class.Model;
 
@@ -10,13 +9,35 @@ using ProjBobcat.Class.Model;
 
 namespace ProjBobcat.Platforms.Windows;
 
-class SystemInfoHelper
+public static class SystemInfoHelper
 {
+    static readonly PerformanceCounter FreeMemCounter = new("Memory", "Available MBytes");
+    static readonly PerformanceCounter MemUsagePercentageCounter = new("Memory", "% Committed Bytes In Use");
+    static readonly PerformanceCounter CpuCounter = new("Processor Information", "% Processor Utility", "_Total");
+
+    static SystemInfoHelper()
+    {
+        // Performance Counter Pre-Heat
+        FreeMemCounter.NextValue();
+        MemUsagePercentageCounter.NextValue();
+        CpuCounter.NextValue();
+    }
+
     /// <summary>
     ///     判断是否安装了 UWP 版本的 Minecraft 。
     /// </summary>
     /// <returns>判断结果。</returns>
     public static bool IsMinecraftUWPInstalled()
+    {
+        return !string.IsNullOrEmpty(GetAppxPackage("Microsoft.MinecraftUWP").Status);
+    }
+
+    /// <summary>
+    ///     获取 UWP 应用的信息。
+    /// </summary>
+    /// <param name="appName">应用名称</param>
+    /// <returns>GetAppxPackage</returns>
+    public static AppxPackageInfo GetAppxPackage(string appName)
     {
         using var process = new Process
         {
@@ -25,14 +46,85 @@ class SystemInfoHelper
                 WorkingDirectory = Environment.CurrentDirectory,
                 RedirectStandardOutput = true,
                 CreateNoWindow = true,
-                Arguments = "Get-AppxPackage -Name \"Microsoft.MinecraftUWP\""
+                Arguments = $"Get-AppxPackage -Name \"{appName}\""
             }
         };
-
         process.Start();
-
         var reader = process.StandardOutput;
-        return !string.IsNullOrEmpty(reader.ReadToEnd());
+
+        var values = ParseAppxPackageOutput(reader.ReadToEnd());
+
+        var appxPackageInfo = new AppxPackageInfo();
+        return SetAppxPackageInfoProperty(appxPackageInfo, values);
+    }
+
+    /// <summary>
+    ///     分析 PowerShell Get-AppxPackage 的输出。
+    /// </summary>
+    /// <param name="output">PowerShell Get-AppxPackage 的输出</param>
+    /// <returns>分析完毕的 Dictionary</returns>
+    static Dictionary<string, string> ParseAppxPackageOutput(string output)
+    {
+        var values = new Dictionary<string, string>();
+        var lines = output.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+        string key = null;
+        string value = null;
+        foreach (var line in lines)
+            if (line.Contains(":"))
+            {
+                if (key != null) values[key] = value.TrimEnd();
+                var parts = line.Split(new[] { ':' }, 2, StringSplitOptions.None);
+                key = parts[0].Trim();
+                value = parts[1].Trim();
+            }
+            else if (key != null)
+            {
+                value += line.Trim();
+            }
+
+        if (key != null) values[key] = value.TrimEnd();
+
+        return values;
+    }
+
+    /// <summary>
+    ///     设置 AppxPackageInfo 的属性。
+    /// </summary>
+    /// <param name="appxPackageInfo">要设置的 AppxPackageInfo</param>
+    /// <param name="values">分析完毕的 Dictionary</param>
+    static AppxPackageInfo SetAppxPackageInfoProperty(AppxPackageInfo appxPackageInfo,
+        Dictionary<string, string> values)
+    {
+        foreach (var (key, value) in values)
+            appxPackageInfo = key switch
+            {
+                "Name" => appxPackageInfo with { Name = value },
+                "Publisher" => appxPackageInfo with { Publisher = value },
+                "Architecture" => appxPackageInfo with { Architecture = value },
+                "ResourceId" => appxPackageInfo with { ResourceId = value },
+                "Version" => appxPackageInfo with { Version = value },
+                "PackageFullName" => appxPackageInfo with { PackageFullName = value },
+                "InstallLocation" => appxPackageInfo with { InstallLocation = value },
+                "IsFramework" => appxPackageInfo with { IsFramework = Convert.ToBoolean(value) },
+                "PackageFamilyName" => appxPackageInfo with { PackageFamilyName = value },
+                "PublisherId" => appxPackageInfo with { PublisherId = value },
+                "IsResourcePackage" => appxPackageInfo with { IsResourcePackage = Convert.ToBoolean(value) },
+                "IsBundle" => appxPackageInfo with { IsBundle = Convert.ToBoolean(value) },
+                "IsDevelopmentMode" => appxPackageInfo with { IsDevelopmentMode = Convert.ToBoolean(value) },
+                "NonRemovable" => appxPackageInfo with { NonRemovable = Convert.ToBoolean(value) },
+                "Dependencies" => appxPackageInfo with
+                {
+                    Dependencies = value.TrimStart('{').TrimEnd('}').Split(',')
+                        .Select(s => s.Trim()).ToArray()
+                },
+                "IsPartiallyStaged" => appxPackageInfo with { IsPartiallyStaged = Convert.ToBoolean(value) },
+                "SignatureKind" => appxPackageInfo with { SignatureKind = value },
+                "Status" => appxPackageInfo with { Status = value },
+                _ => appxPackageInfo
+            };
+
+        return appxPackageInfo;
     }
 
     /// <summary>
@@ -44,9 +136,12 @@ class SystemInfoHelper
         try
         {
             using var rootReg = Registry.LocalMachine.OpenSubKey("SOFTWARE");
+
+            if (rootReg == null) return Enumerable.Empty<string>();
+
             using var wow64Reg = rootReg.OpenSubKey("Wow6432Node");
 
-            var javas = (rootReg == null ? Array.Empty<string>() : FindJavaInternal(rootReg))
+            var javas = FindJavaInternal(rootReg)
                 .Union(FindJavaInternal(wow64Reg))
                 .ToHashSet();
 
@@ -54,12 +149,14 @@ class SystemInfoHelper
         }
         catch
         {
-            return Array.Empty<string>();
+            return Enumerable.Empty<string>();
         }
     }
 
-    public static IEnumerable<string> FindJavaInternal(RegistryKey registry)
+    public static IEnumerable<string> FindJavaInternal(RegistryKey? registry)
     {
+        if (registry == null) return Enumerable.Empty<string>();
+
         try
         {
             using var regKey = registry.OpenSubKey("JavaSoft");
@@ -97,23 +194,17 @@ class SystemInfoHelper
     /// <returns></returns>
     public static MemoryInfo GetWindowsMemoryStatus()
     {
-        using var wmiObject = new ManagementObjectSearcher("select * from Win32_OperatingSystem");
+        var free = FreeMemCounter.NextValue();
+        var total = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / Math.Pow(1024, 2);
+        var used = total - free;
+        var percentage = MemUsagePercentageCounter.NextValue();
 
-        var memoryValue = wmiObject.Get().Cast<ManagementObject>().Select(mo => new
-        {
-            Free = double.Parse(mo["FreePhysicalMemory"].ToString()) / 1024,
-            Total = double.Parse(mo["TotalVisibleMemorySize"].ToString()) / 1024
-        }).FirstOrDefault();
-
-        if (memoryValue == default) return null;
-
-        var percent = (memoryValue.Total - memoryValue.Free) / memoryValue.Total;
         var result = new MemoryInfo
         {
-            Free = memoryValue.Free,
-            Percentage = percent,
-            Total = memoryValue.Total,
-            Used = memoryValue.Total - memoryValue.Free
+            Free = free,
+            Percentage = percentage,
+            Total = total,
+            Used = used
         };
 
         return result;
@@ -123,19 +214,15 @@ class SystemInfoHelper
     ///     获取系统 Cpu 信息
     /// </summary>
     /// <returns></returns>
-    public static IEnumerable<CPUInfo> GetWindowsCpuUsage()
+    public static CPUInfo GetWindowsCpuUsage()
     {
-        using var searcher = new ManagementObjectSearcher("select * from Win32_PerfFormattedData_PerfOS_Processor");
-        var cpuTimes = searcher.Get()
-            .Cast<ManagementObject>()
-            .ToDictionary(k => k["Name"].ToString(), v => Convert.ToDouble(v["PercentProcessorTime"]))
-            .Select(p => new CPUInfo
-            {
-                Name = p.Key,
-                Usage = p.Value
-            });
+        var percentage = CpuCounter.NextValue();
 
-        return cpuTimes;
+        return new CPUInfo
+        {
+            Name = "Total %",
+            Usage = percentage
+        };
     }
 
     public static IEnumerable<string> GetLogicalDrives()

@@ -7,8 +7,10 @@ using ProjBobcat.Class;
 using ProjBobcat.Class.Helper;
 using ProjBobcat.Class.Helper.SystemInfo;
 using ProjBobcat.Class.Model;
+using ProjBobcat.Class.Model.JsonContexts;
 using ProjBobcat.Class.Model.LauncherProfile;
 using ProjBobcat.Class.Model.Version;
+using ProjBobcat.JsonConverter;
 using FileInfo = ProjBobcat.Class.Model.FileInfo;
 
 namespace ProjBobcat.DefaultComponent.Launch;
@@ -72,14 +74,14 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
             }
 
             if (jvmRule.TryGetProperty("rules", out var rules))
-                if (!(rules.Deserialize<JvmRules[]>()?.CheckAllow() ?? false))
+                if (!(rules.Deserialize(JvmRulesContext.Default.JvmRulesArray)?.CheckAllow() ?? false))
                     continue;
             if (!jvmRule.TryGetProperty("value", out var value)) continue;
 
             switch (value.ValueKind)
             {
                 case JsonValueKind.Array:
-                    var values = value.Deserialize<string[]>();
+                    var values = value.Deserialize(StringContext.Default.StringArray);
 
                     if (!(values?.Any() ?? false)) continue;
 
@@ -136,7 +138,7 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
             var ruleKey = string.Empty;
             var ruleValue = string.Empty;
 
-            var rulesArr = rules.Deserialize<GameRules[]>();
+            var rulesArr = rules.Deserialize(GameRulesContext.Default.GameRulesArray);
 
             if (!(rulesArr?.Any() ?? false)) continue;
 
@@ -153,7 +155,8 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
                 ruleValue = value.ValueKind switch
                 {
                     JsonValueKind.String => value.GetString(),
-                    JsonValueKind.Array => string.Join(' ', value.Deserialize<string[]>() ?? Array.Empty<string>())
+                    JsonValueKind.Array => string.Join(' ',
+                        value.Deserialize(StringContext.Default.StringArray) ?? Array.Empty<string>())
                 };
             }
 
@@ -187,10 +190,16 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
             var isNative = lib.Natives?.Any() ?? false;
             if (isNative)
             {
+                /*
                 var key =
-                    lib.Natives.TryGetValue(Constants.OsSymbol, out var value)
+                    lib.Natives!.TryGetValue(Constants.OsSymbol, out var value)
                         ? value.Replace("${arch}", SystemArch.CurrentArch.ToString("{0}"))
                         : $"natives-{Constants.OsSymbol}";
+                */
+
+                if(!lib.Natives!.TryGetValue(Constants.OsSymbol, out var value)) continue;
+
+                var key = value.Replace("${arch}", SystemArch.CurrentArch.ToString("{0}"));
 
                 FileInfo libFi;
                 if (lib.Downloads?.Classifiers?.ContainsKey(key) ?? false)
@@ -205,6 +214,9 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
                     if (!lib.Name.EndsWith($":{key}", StringComparison.OrdinalIgnoreCase)) libName += $":{key}";
 
                     var mavenInfo = libName.ResolveMavenString();
+
+                    if(mavenInfo == null) continue;
+
                     var downloadUrl = string.IsNullOrEmpty(lib.Url)
                         ? mavenInfo.OrganizationName.Equals("net.minecraftforge", StringComparison.Ordinal)
                             ? "https://files.minecraftforge.net/maven/"
@@ -280,7 +292,7 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
     /// <returns></returns>
     public override RawVersionModel? ParseRawVersion(string id)
     {
-        // 预防I/O的错误。
+        // 预防 I/O 的错误。
         // Prevents errors related to I/O.
         if (!Directory.Exists(Path.Combine(RootPath, GamePathHelper.GetGamePath(id))))
             return null;
@@ -288,9 +300,17 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
             return null;
 
         using var fs = File.OpenRead(GamePathHelper.GetGameJsonPath(RootPath, id));
-        var versionJson = JsonSerializer.Deserialize<RawVersionModel>(fs);
+        var options = new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new DateTimeConverterUsingDateTimeParse()
+            }
+        };
+        var versionJsonObj = JsonSerializer.Deserialize(
+            fs, typeof(RawVersionModel), new RawVersionModelContext(options));
 
-        if (versionJson == null)
+        if (versionJsonObj is not RawVersionModel versionJson)
             return null;
         if (string.IsNullOrEmpty(versionJson.MainClass))
             return null;
@@ -432,13 +452,15 @@ public sealed class DefaultVersionLocator : VersionLocatorBase
                 }
 
 
-                var currentNativesNames = new List<string>();
-                result.Natives.ForEach(n => { currentNativesNames.Add(n.FileInfo.Name); });
+                var currentNativesNames = new List<string>(result.Natives
+                    .Where(mL => !string.IsNullOrEmpty(mL.FileInfo.Name))
+                    .Select(mL => mL.FileInfo.Name!));
                 var moreMiddleNatives =
-                    middleLibs.Item1.AsParallel().Where(mL => !currentNativesNames.Contains(mL.FileInfo.Name))
+                    middleLibs.Item1
+                        .Where(mL => !string.IsNullOrEmpty(mL.FileInfo.Name))
+                        .Where(mL => !currentNativesNames.Contains(mL.FileInfo.Name!))
                         .ToList();
                 result.Natives.AddRange(moreMiddleNatives);
-
 
                 var jvmArgs = ParseJvmArguments(inherits[i]!.Arguments?.Jvm);
                 var middleGameArgs = ParseGameArguments(

@@ -7,7 +7,6 @@ using ProjBobcat.Class.Helper;
 using ProjBobcat.Class.Model;
 using ProjBobcat.Class.Model.GameResource;
 using ProjBobcat.Interface;
-using SharpCompress.Common;
 
 namespace ProjBobcat.DefaultComponent.ResourceInfoResolver;
 
@@ -23,7 +22,7 @@ public sealed class VersionInfoResolver : ResolverBase
         if (!File.Exists(versionJson)) yield break;
 
         await using var fs = File.OpenRead(versionJson);
-        var rawVersionModel = await JsonSerializer.DeserializeAsync<RawVersionModel>(fs);
+        var rawVersionModel = await JsonSerializer.DeserializeAsync(fs, RawVersionModelContext.Default.RawVersionModel);
 
         if (rawVersionModel?.Downloads?.Client == null) yield break;
 
@@ -38,7 +37,7 @@ public sealed class VersionInfoResolver : ResolverBase
 #if NET7_0_OR_GREATER
             await using var jarFs = File.Open(jarPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             var computedHash = (await SHA1.HashDataAsync(jarFs)).BytesToString();
-#elif NET6_0_OR_GREATER
+#else
             var bytes = await File.ReadAllBytesAsync(jarPath);
             var computedHash = SHA1.HashData(bytes.AsSpan()).BytesToString();
 #endif

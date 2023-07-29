@@ -1,14 +1,13 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Timers;
 using ProjBobcat.Class.Helper;
 using ProjBobcat.Class.Model;
 using ProjBobcat.Class.Model.Auth;
+using ProjBobcat.Class.Model.JsonContexts;
 using ProjBobcat.Class.Model.LauncherAccount;
 using ProjBobcat.Class.Model.LauncherProfile;
 using ProjBobcat.Class.Model.YggdrasilAuth;
@@ -26,23 +25,6 @@ public class YggdrasilAuthenticator : IAuthenticator
     /// </summary>
     const string OfficialAuthServer = "https://authserver.mojang.com";
 
-    static readonly ConcurrentQueue<string> _loginHistoryQueue = new();
-
-    static readonly Timer _loginTimer = new(5000)
-    {
-        AutoReset = true,
-        Enabled = true
-    };
-
-    static YggdrasilAuthenticator()
-    {
-        _loginTimer.Elapsed += (_, _) =>
-        {
-            if (_loginHistoryQueue.IsEmpty) return;
-            _loginHistoryQueue.TryDequeue(out _);
-        };
-    }
-
     /// <summary>
     ///     获取或设置邮箱。
     /// </summary>
@@ -57,7 +39,7 @@ public class YggdrasilAuthenticator : IAuthenticator
     ///     获取或设置验证服务器。
     ///     这个属性允许为 null 。
     /// </summary>
-    public string AuthServer { get; init; }
+    public string? AuthServer { get; init; }
 
     /// <summary>
     ///     获取登录Api地址。
@@ -115,22 +97,27 @@ public class YggdrasilAuthenticator : IAuthenticator
             Username = Email,
             Password = Password
         };
-        var requestJson = JsonSerializer.Serialize(requestModel, JsonHelper.CamelCasePropertyNamesSettings);
-
-        if (!_loginHistoryQueue.IsEmpty)
-        {
-            var authInfo = _loginHistoryQueue.FirstOrDefault();
-            if (!string.IsNullOrEmpty(authInfo))
-                if (authInfo.Equals($"{Email}_{Password}", StringComparison.OrdinalIgnoreCase))
-                    await Task.Delay(5500);
-        }
+        var requestJson = JsonSerializer.Serialize(requestModel, typeof(AuthRequestModel),
+            new AuthRequestModelContext(JsonHelper.CamelCasePropertyNamesSettings()));
 
         using var resultJson = await HttpHelper.Post(LoginAddress, requestJson);
-        var result = await resultJson.Content.ReadFromJsonAsync<AuthResponseModel>();
+
+        if (!resultJson.IsSuccessStatusCode)
+            return new YggdrasilAuthResult
+            {
+                AuthStatus = AuthStatus.Failed,
+                Error = new ErrorModel
+                {
+                    Cause = "网络请求失败",
+                    Error = $"验证请求返回了失败的状态码：{resultJson.StatusCode}"
+                }
+            };
+
+        var result = await resultJson.Content.ReadFromJsonAsync(AuthResponseModelContext.Default.AuthResponseModel);
 
         if (result == default || string.IsNullOrEmpty(result.AccessToken))
         {
-            var error = await resultJson.Content.ReadFromJsonAsync<ErrorModel>();
+            var error = await resultJson.Content.ReadFromJsonAsync(ErrorModelContext.Default.ErrorModel);
 
             if (error is null)
                 return new YggdrasilAuthResult
@@ -195,7 +182,7 @@ public class YggdrasilAuthenticator : IAuthenticator
             Legacy = false,
             LocalId = rUuid,
             Persistent = true,
-            RemoteId = result.User.UUID.ToString(),
+            RemoteId = result.User?.UUID.ToString() ?? new Guid().ToString(),
             Type = "Mojang",
             UserProperites = result.User?.Properties?.ToAuthProperties(profiles).ToArray() ??
                              Array.Empty<AuthPropertyModel>(),
@@ -242,8 +229,6 @@ public class YggdrasilAuthenticator : IAuthenticator
                     ErrorMessage = "请检查 launcher_accounts.json 的权限"
                 }
             };
-
-        _loginHistoryQueue.Enqueue($"{Email}_{Password}");
 
         return new YggdrasilAuthResult
         {
@@ -300,7 +285,7 @@ public class YggdrasilAuthenticator : IAuthenticator
                 },
                 SelectedProfile = new ProfileInfoModel
                 {
-                    Name = profile.MinecraftProfile.Name,
+                    Name = profile.MinecraftProfile?.Name ?? Email,
                     UUID = new PlayerUUID()
                 }
             };
@@ -324,10 +309,14 @@ public class YggdrasilAuthenticator : IAuthenticator
             RequestUser = userField,
             SelectedProfile = response.SelectedProfile
         };
-        var requestJson = JsonSerializer.Serialize(requestModel, JsonHelper.CamelCasePropertyNamesSettings);
+        var requestJson = JsonSerializer.Serialize(requestModel, typeof(AuthRefreshRequestModel),
+            new AuthRefreshRequestModelContext(JsonHelper.CamelCasePropertyNamesSettings()));
 
         using var resultJson = await HttpHelper.Post(RefreshAddress, requestJson);
-        var result = await resultJson.Content.ReadFromJsonAsync<object>();
+        var resultJsonElement = await resultJson.Content.ReadFromJsonAsync(JsonElementContext.Default.JsonElement);
+        object? result = resultJsonElement.TryGetProperty("cause", out _)
+            ? resultJsonElement.Deserialize(ErrorModelContext.Default.ErrorModel)
+            : resultJsonElement.Deserialize(AuthResponseModelContext.Default.AuthResponseModel);
 
         switch (result)
         {
@@ -372,7 +361,7 @@ public class YggdrasilAuthenticator : IAuthenticator
                     Legacy = false,
                     LocalId = rUuid,
                     Persistent = true,
-                    RemoteId = authResponse.User.UUID.ToString(),
+                    RemoteId = authResponse.User?.UUID.ToString() ?? new Guid().ToString(),
                     Type = "Mojang",
                     UserProperites = authResponse.User?.Properties?.ToAuthProperties(profiles).ToArray() ??
                                      Array.Empty<AuthPropertyModel>(),
@@ -425,7 +414,8 @@ public class YggdrasilAuthenticator : IAuthenticator
             AccessToken = accessToken,
             ClientToken = LauncherAccountParser.LauncherAccount.MojangClientToken
         };
-        var requestJson = JsonSerializer.Serialize(requestModel, JsonHelper.CamelCasePropertyNamesSettings);
+        var requestJson = JsonSerializer.Serialize(requestModel, typeof(AuthTokenRequestModel),
+            new AuthTokenRequestModelContext(JsonHelper.CamelCasePropertyNamesSettings()));
 
         using var result = await HttpHelper.Post(ValidateAddress, requestJson);
         return result.StatusCode.Equals(HttpStatusCode.NoContent);
@@ -438,7 +428,8 @@ public class YggdrasilAuthenticator : IAuthenticator
             AccessToken = accessToken,
             ClientToken = LauncherAccountParser.LauncherAccount.MojangClientToken
         };
-        var requestJson = JsonSerializer.Serialize(requestModel, JsonHelper.CamelCasePropertyNamesSettings);
+        var requestJson = JsonSerializer.Serialize(requestModel, typeof(AuthTokenRequestModel),
+            new AuthTokenRequestModelContext(JsonHelper.CamelCasePropertyNamesSettings()));
 
         using var x = await HttpHelper.Post(RevokeAddress, requestJson);
     }
@@ -455,7 +446,8 @@ public class YggdrasilAuthenticator : IAuthenticator
             Username = Email,
             Password = Password
         };
-        var requestJson = JsonSerializer.Serialize(requestModel, JsonHelper.CamelCasePropertyNamesSettings);
+        var requestJson = JsonSerializer.Serialize(requestModel, typeof(SignOutRequestModel),
+            new SignOutRequestModelContext(JsonHelper.CamelCasePropertyNamesSettings()));
 
         using var result = await HttpHelper.Post(SignOutAddress, requestJson);
         return result.StatusCode.Equals(HttpStatusCode.NoContent);

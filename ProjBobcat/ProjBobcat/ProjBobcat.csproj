@@ -1,18 +1,23 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
     <OutputType>Library</OutputType>
+    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
-    <IsWindows Condition=" ( '$(OS)' == 'Windows_NT' And '$(Configuration)' == 'Debug' ) Or '$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == 'win7-x64'">true</IsWindows>
-    <IsOSX Condition="( '$(OS)' == 'Unix' And '$(Configuration)' == 'Debug' ) Or '$(RuntimeIdentifier)' == 'osx-x64'">true</IsOSX>
-    <IsLinux Condition="( '$(OS)' == 'Unix' And $([System.IO.File]::Exists('/usr/lib/libc.dylib'))) And '$(RuntimeIdentifier)' == 'linux-x64'">true</IsLinux>
+    <IsWindows Condition=" '$(OS)' == 'Windows_NT' Or '$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == 'win7-x64' Or '$(RuntimeIdentifier)' == 'win10-arm64'">true</IsWindows>
+    <IsOSX Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' Or '$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx.13-arm64' ">true</IsOSX>
+    <IsLinux Condition=" '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' Or '$(RuntimeIdentifier)' == 'linux-x64' ">true</IsLinux>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net8.0' OR ('$(TargetFramework)'=='net7.0' AND ('$(IsWindows)'=='true' OR '$(IsLinux)'=='true'))">
+    <PublishAot>true</PublishAot>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <!-- Symbol Definitions -->
@@ -40,21 +45,21 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageIcon>Bobcat.png</PackageIcon>
     <RepositoryUrl>https://github.com/Corona-Studio/ProjBobcat</RepositoryUrl>
-    <Version>1.23.1</Version>
+    <Version>1.30.0</Version>
     <Authors>Corona Studio</Authors>
     <Company>Corona Studio</Company>
     <Product>ProjBobcat</Product>
     <Description>The next-generation Minecraft launcher core written in C# providing the freest, fastest and the most complete experience.</Description>
-    <Copyright>Copyright © 2022 Corona Studio</Copyright>
+    <Copyright>Copyright © 2023 Corona Studio</Copyright>
     <PackageIcon>Bobcat.png</PackageIcon>
     <RepositoryUrl>https://github.com/Corona-Studio/ProjBobcat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>minecraft-launcher minecraft launcher csharp</PackageTags>
-    <PackageReleaseNotes>add GameResourcesResolveHelper  for resource resolve
-fix FabricInstaller bug
-fix OptifineInstaller bug
-more bug fix
-performance optimization
+    <PackageReleaseNotes>add support for NativeAOT
+JSON performance improvements
+minor bug fix
+remove unused packages
+change HttpClientHelper usage
     </PackageReleaseNotes>
   </PropertyGroup>
 
@@ -69,7 +74,6 @@ performance optimization
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="FodyWeavers.xml" />
     <None Remove="ProjBobcat.GeneratedMSBuildEditorConfig.editorconfig" />
   </ItemGroup>
   
@@ -90,17 +94,16 @@ performance optimization
   <!-- Dependencies -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.2.206-beta">
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.18-beta">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="SharpCompress" Version="0.33.0">
     </PackageReference>
   </ItemGroup>
   <ItemGroup Condition=" '$(IsWindows)'=='true' ">
-    <PackageReference Include="System.Management" Version="7.0.0" />
+    <PackageReference Include="System.Management" Version="7.0.2" />
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="7.0.0" />
   </ItemGroup>
   <!-- Dependencies -->
 
@@ -117,10 +120,6 @@ performance optimization
   </ItemGroup>
   <ItemGroup Condition=" '$(IsOSX)'=='true' ">
     <Compile Include="Platforms\MacOS\**\*.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Class\Model\GameResource\ResolvedInfo\" />
-    <Folder Include="DefaultComponent\LogAnalysis\AnalysisReport\" />
   </ItemGroup>
   <!-- Compile Options -->
 </Project>

@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 
 namespace ProjBobcat.Class.Model.GameResource;
 
@@ -12,4 +13,9 @@ public class Pack
 public class GameResourcePackModel
 {
     [JsonPropertyName("pack")] public Pack? Pack { get; set; }
+}
+
+[JsonSerializable(typeof(GameResourcePackModel))]
+partial class GameResourcePackModelContext : JsonSerializerContext
+{
 }

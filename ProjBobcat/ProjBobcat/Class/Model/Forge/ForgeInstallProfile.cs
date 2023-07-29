@@ -12,7 +12,7 @@ public class ForgeInstallProfileData
 
 public class ForgeInstallProfileProcessor
 {
-    [JsonPropertyName("sides")] public string[] Sides { get; set; }
+    [JsonPropertyName("sides")] public string[]? Sides { get; set; }
 
     [JsonPropertyName("jar")] public string Jar { get; set; }
 
@@ -50,4 +50,9 @@ public class ForgeInstallProfile
     [JsonPropertyName("processors")] public ForgeInstallProfileProcessor[] Processors { get; set; }
 
     [JsonPropertyName("libraries")] public Library[] Libraries { get; set; }
+}
+
+[JsonSerializable(typeof(ForgeInstallProfile))]
+partial class ForgeInstallProfileContext : JsonSerializerContext
+{
 }

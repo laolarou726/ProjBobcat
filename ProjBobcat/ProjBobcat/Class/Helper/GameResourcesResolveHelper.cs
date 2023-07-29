@@ -63,7 +63,7 @@ public static class GameResourcesResolveHelper
                 var infoTable = arr.Children.First();
 
                 var title = infoTable.HasKey("modId")
-                    ? infoTable["modId"]?.AsString
+                    ? (infoTable["modId"]?.AsString ?? "-")
                     : Path.GetFileName(file);
                 var author = infoTable.HasKey("authors")
                     ? infoTable["authors"]?.AsString
@@ -77,20 +77,22 @@ public static class GameResourcesResolveHelper
 
             async Task<GameModResolvedInfo?> GetNewModInfo(IArchiveEntry entry)
             {
-                await using var stream = entry.OpenEntryStream();
-                var doc = await JsonDocument.ParseAsync(stream);
-
                 List<GameModInfoModel>? model = null;
+                
+                await using var stream = entry.OpenEntryStream();
+                var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                
                 switch (doc.RootElement.ValueKind)
                 {
                     case JsonValueKind.Object:
-                        var val = doc.RootElement.Deserialize<GameModInfoModel>();
+                        var val = doc.RootElement.Deserialize(GameModInfoModelContext.Default.GameModInfoModel);
 
                         if (val != null) model = new List<GameModInfoModel> { val };
 
                         break;
                     case JsonValueKind.Array:
-                        model = doc.RootElement.Deserialize<List<GameModInfoModel>>();
+                        model = doc.RootElement.Deserialize(GameModInfoModelContext.Default.ListGameModInfoModel) ??
+                                new List<GameModInfoModel>();
                         break;
                 }
 
@@ -126,17 +128,30 @@ public static class GameResourcesResolveHelper
 
             async Task<GameModResolvedInfo> GetFabricModInfo(IArchiveEntry entry)
             {
-                await using var stream = entry.OpenEntryStream();
-                var tempModel = await JsonSerializer.DeserializeAsync<FabricModInfoModel>(stream);
+                try
+                {
+                    await using var stream = entry.OpenEntryStream();
+                    var tempModel = await JsonSerializer.DeserializeAsync(stream,
+                        FabricModInfoModelContext.Default.FabricModInfoModel, ct);
 
-                var author = tempModel?.Authors?.Any() ?? false
-                    ? string.Join(',', tempModel.Authors)
-                    : null;
-                var modList = tempModel?.Depends?.Select(d => d.Key)?.ToImmutableList();
-                var titleResult = string.IsNullOrEmpty(tempModel?.Id) ? Path.GetFileName(file) : tempModel.Id;
-                var versionResult = string.IsNullOrEmpty(tempModel?.Version) ? null : tempModel.Version;
+                    var author = tempModel?.Authors?.Any() ?? false
+                        ? string.Join(',', tempModel.Authors)
+                        : null;
+                    var modList = tempModel?.Depends?.Select(d => d.Key)?.ToImmutableList();
+                    var titleResult = string.IsNullOrEmpty(tempModel?.Id) ? Path.GetFileName(file) : tempModel.Id;
+                    var versionResult = string.IsNullOrEmpty(tempModel?.Version) ? null : tempModel.Version;
 
-                return new GameModResolvedInfo(author, file, modList, titleResult, versionResult, "Fabric", isEnabled);
+                    return new GameModResolvedInfo(author, file, modList, titleResult, versionResult, "Fabric", isEnabled);
+                }
+                catch (JsonException e)
+                {
+                    var errorList = new[]
+                    {
+                        "[!] 数据包 JSON 异常",
+                        e.Message
+                    };
+                    return new GameModResolvedInfo(null, file, errorList.ToImmutableList(), Path.GetFileName(file), null, "Fabric", isEnabled);
+                }
             }
 
             GameModResolvedInfo? result = null;
@@ -203,11 +218,20 @@ public static class GameResourcesResolveHelper
 
             if (packInfoEntry != null)
             {
-                await using var stream = packInfoEntry.OpenEntryStream();
-                var model = await JsonSerializer.DeserializeAsync<GameResourcePackModel>(stream);
+                try
+                {
+                    await using var stream = packInfoEntry.OpenEntryStream();
+                    var model = await JsonSerializer.DeserializeAsync(stream,
+                        GameResourcePackModelContext.Default.GameResourcePackModel, ct);
 
-                description = model?.Pack?.Description;
-                version = model?.Pack?.PackFormat ?? -1;
+                    description = model?.Pack?.Description;
+                    version = model?.Pack?.PackFormat ?? -1;
+                }
+                catch (JsonException e)
+                {
+                    description = $"[!] 数据包 JSON 异常: {e.Message}";
+                    version = -1;
+                }
             }
 
             return new GameResourcePackResolvedInfo(fileName, description, version, imageBytes);
@@ -227,11 +251,20 @@ public static class GameResourcesResolveHelper
 
             if (File.Exists(infoPath))
             {
-                await using var contentStream = File.OpenRead(infoPath);
-                var model = await JsonSerializer.DeserializeAsync<GameResourcePackModel>(contentStream);
+                try
+                {
+                    await using var contentStream = File.OpenRead(infoPath);
+                    var model = await JsonSerializer.DeserializeAsync(contentStream,
+                        GameResourcePackModelContext.Default.GameResourcePackModel, ct);
 
-                description = model?.Pack?.Description;
-                version = model?.Pack?.PackFormat ?? -1;
+                    description = model?.Pack?.Description;
+                    version = model?.Pack?.PackFormat ?? -1;
+                }
+                catch (JsonException e)
+                {
+                    description = $"[!] 数据包 JSON 异常: {e.Message}";
+                    version = -1;
+                }
             }
 
             return new GameResourcePackResolvedInfo(fileName, description, version, imageBytes);

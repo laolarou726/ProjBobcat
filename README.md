@@ -17,8 +17,9 @@ The next-generation Minecraft launcher core written in C# providing the freest, 
 
 Developed and maintained by Corona Studio.
 
-## Stats
-![Alt](https://repobeats.axiom.co/api/embed/d8d56d4c2023d90ea067d5b3ca83ed5da4979289.svg "Repobeats analytics image")
+## NativeAOT (ahead-of-time compilation) Support
+
+ProjBobcat provide fully support for [NativeAot](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/). Native AOT apps start up very quickly and use less memory. Users of the application can run it on a machine that doesn't have the .NET runtime installed. If you want to use NativeAot in your project, please switch your target framework to **net7.0 or higher**.
 
 ## Multi-Platform Support
 
@@ -27,7 +28,7 @@ Currently we are working on the multi-platform support for ProjBobcat
 |:------:|:----:|
 |Windows |  ✅ |
 |macOS |  ✅   |
-|Linux |  WIP  |
+|Linux |  ✅   |
 
 ## [Ad] An Awesome Typescript Launcher Core
 [Repo Link](https://github.com/Voxelum/minecraft-launcher-core-node)
@@ -36,7 +37,7 @@ All you need for minecraft launcher in typescript. https://voxelum.github.io/min
 
 ## Reminder before installation
 
-+ Because Projbobcat uses tons of latest language features and data structures from .NET Core and .NET 5+. As the result, you need to switch you project target to at least **.NET 5 or above** to use this package.
++ Because Projbobcat uses tons of latest language features and data structures from .NET Core and .NET 6+. As the result, you need to switch you project target to at least **.NET 6 or above** to use this package.
 + Due to the limitation of the default number of connections in .NET, you need to manually override the default number of connections to ensure that some methods in <DownloadHelper> are executed normally. You can add the following code in App.xaml.cs or the entry point of the program to complete the modification (The maximum value should not exceed 1024)
 
   ```c#
@@ -50,16 +51,11 @@ All you need for minecraft launcher in typescript. https://voxelum.github.io/min
 There are two methods for the first step:
 * Clone and copy ProjBobcat's source code to your solution folder, then add ProjBobcat's reference to your project.
 * Directly install ProjBobcat via Nuget Package Manager or simply execute 
+
   ```
   Install-Package ProjBobcat
   ```
   in Package Manager Console.
-
-After the step above is completed, you need to add two lines of code into your program's entry point (App.xaml.cs or something else):
-  ```c#
-  ServiceHelper.Init();
-  HttpClientHelper.Init();
-  ```
 
 ## Roadmap
 
@@ -113,7 +109,6 @@ var javaList = ProjBobcat.Class.Helper.SystemInfoHelper.FindJava(); // Returns a
 #### Core Initialization
 
 ```csharp
-
 var core = new DefaultGameCore
 {
   ClientToken = clientToken,
@@ -125,17 +120,16 @@ var core = new DefaultGameCore
   },
   GameLogResolver = new DefaultGameLogResolver()
 };
-
 ```
 
 #### Game Scaning
+
 ```csharp
-
 List<VersionInfo> gameList = core.VersionLocator.GetAllGames().ToList();
-
 ```
 
 #### Resource Completion
+
 ```csharp
 //Here we use mcbbs' download source, change the uri to meet your need.
 var drc = new DefaultResourceCompleter
@@ -159,7 +153,6 @@ var drc = new DefaultResourceCompleter
 };
 
 await drc.CheckAndDownloadTaskAsync().ConfigureAwait(false);
-
 ```
 
 Here are some events which you could bind to your program.
@@ -173,7 +166,6 @@ Here are some events which you could bind to your program.
 #### Launch Configuration
 
 ```csharp
-
 var launchSettings = new LaunchSettings
 {
     FallBackGameArguments = new GameArguments // Default game arguments for all games in .minecraft/ as the fallback of specific game launch.
@@ -203,7 +195,6 @@ launchSettings.GameArguments = new GameArguments // (Optional) The arguments of 
     MinMemory = specificMinMemory, // Minimum Memory
     MaxMemory = specificMaxMemory // Maximum Memory
 };
-
 ```
 
 Here are some events which you could bind to your program.
@@ -219,13 +210,11 @@ Here are some events which you could bind to your program.
 Offline:
 
 ```csharp
-
 launchSettings.Authenticator = new OfflineAuthenticator
 {
     Username = "Username"
     LauncherAccountParser = core.VersionLocator.LauncherAccountParser // launcher_profiles.json parser
 },
-
 ```
 
 Online:
@@ -242,10 +231,11 @@ launchSettings.Authenticator = new YggdrasilAuthenticator
 #### Launch!
 
 ```csharp
-
 var result = await Core.LaunchTaskAsync(launchSettings).ConfigureAwait(true); // Returns the launch result
-
 ```
+
+## Stats
+![Alt](https://repobeats.axiom.co/api/embed/d8d56d4c2023d90ea067d5b3ca83ed5da4979289.svg "Repobeats analytics image")
 
 ## License
 MIT. This means that you can modify or use our code for any purpose, however copyright notice and permission notice shall be included in all copies or substantial portions of your software.

@@ -59,7 +59,7 @@ public class JavaInfoResolver : ResolverBase
             if (CheckLocalFiles && File.Exists(filePath))
             {
                 await using var fs = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                var computedHash = (await SHA1.HashDataAsync(fs)).BytesToString();
+                var computedHash = Convert.ToHexString(await SHA1.HashDataAsync(fs));
 
                 if (computedHash.Equals(storage.Sha1, StringComparison.OrdinalIgnoreCase)) 
                     continue;
@@ -70,7 +70,7 @@ public class JavaInfoResolver : ResolverBase
             {
                 FileName = fileName,
                 Path = filePath.Replace($"/{fileName}", string.Empty),
-                Type = ResourceType.Other,
+                Type = ResourceType.LibraryOrNative,
                 Title = $"Java Asset {fileName}",
                 FileSize = storage.Size,
                 Url = storage.Url,

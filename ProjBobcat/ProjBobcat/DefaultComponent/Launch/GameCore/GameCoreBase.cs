@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using ProjBobcat.Class;
 using ProjBobcat.Class.Model;
@@ -23,20 +24,20 @@ public abstract class GameCoreBase : IGameCore
 
     public event EventHandler<GameExitEventArgs> GameExitEventDelegate
     {
-        add => ListEventDelegates.AddHandler(GameExitEventKey, value);
-        remove => ListEventDelegates.RemoveHandler(GameExitEventKey, value);
+        add => this.ListEventDelegates.AddHandler(GameExitEventKey, value);
+        remove => this.ListEventDelegates.RemoveHandler(GameExitEventKey, value);
     }
 
     public event EventHandler<GameLogEventArgs> GameLogEventDelegate
     {
-        add => ListEventDelegates.AddHandler(GameLogEventKey, value);
-        remove => ListEventDelegates.RemoveHandler(GameLogEventKey, value);
+        add => this.ListEventDelegates.AddHandler(GameLogEventKey, value);
+        remove => this.ListEventDelegates.RemoveHandler(GameLogEventKey, value);
     }
 
     public event EventHandler<LaunchLogEventArgs> LaunchLogEventDelegate
     {
-        add => ListEventDelegates.AddHandler(LaunchLogEventKey, value);
-        remove => ListEventDelegates.RemoveHandler(LaunchLogEventKey, value);
+        add => this.ListEventDelegates.AddHandler(LaunchLogEventKey, value);
+        remove => this.ListEventDelegates.RemoveHandler(LaunchLogEventKey, value);
     }
 
     /// <summary>
@@ -46,7 +47,7 @@ public abstract class GameCoreBase : IGameCore
     /// <returns></returns>
     public virtual LaunchResult Launch(LaunchSettings settings)
     {
-        return LaunchTaskAsync(settings).Result;
+        return this.LaunchTaskAsync(settings).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -66,40 +67,57 @@ public abstract class GameCoreBase : IGameCore
     public void Dispose()
     {
         // 不要更改此代码。请将清理代码放入“Dispose(bool disposing)”方法中
-        Dispose(true);
+        this.Dispose(true);
         GC.SuppressFinalize(this);
     }
 
     public virtual void OnGameExit(object sender, GameExitEventArgs e)
     {
-        var eventList = ListEventDelegates;
+        var eventList = this.ListEventDelegates;
         var @event = (EventHandler<GameExitEventArgs>)eventList[GameExitEventKey]!;
         @event?.Invoke(sender, e);
     }
 
     public virtual void OnLogGameData(object sender, GameLogEventArgs e)
     {
-        var eventList = ListEventDelegates;
+        var eventList = this.ListEventDelegates;
         var @event = (EventHandler<GameLogEventArgs>)eventList[GameLogEventKey]!;
         @event?.Invoke(sender, e);
     }
 
     public virtual void OnLogLaunchData(object sender, LaunchLogEventArgs e)
     {
-        var eventList = ListEventDelegates;
+        var eventList = this.ListEventDelegates;
         var @event = (EventHandler<LaunchLogEventArgs>)eventList[LaunchLogEventKey]!;
         @event?.Invoke(sender, e);
     }
 
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposedValue)
+        if (!this._disposedValue)
         {
-            if (disposing) ListEventDelegates.Dispose();
+            if (disposing) this.ListEventDelegates.Dispose();
 
             // TODO: 释放未托管的资源(未托管的对象)并重写终结器
             // TODO: 将大型字段设置为 null
-            _disposedValue = true;
+            this._disposedValue = true;
         }
+    }
+
+    /// <summary>
+    ///     （内部方法）写入日志，记录时间。
+    ///     Write the log and record the time.
+    /// </summary>
+    /// <param name="item"></param>
+    /// <param name="timestamp"></param>
+    protected void InvokeLaunchLogThenStart(string item, ref long timestamp)
+    {
+        this.OnLogLaunchData(this, new LaunchLogEventArgs
+        {
+            Item = item,
+            ItemRunTime = Stopwatch.GetElapsedTime(timestamp)
+        });
+
+        timestamp = Stopwatch.GetTimestamp();
     }
 }

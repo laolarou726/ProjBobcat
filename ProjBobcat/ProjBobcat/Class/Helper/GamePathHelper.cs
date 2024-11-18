@@ -43,6 +43,9 @@ public static class GamePathHelper
     {
         var versions = Path.Combine(rootPath, "versions", id);
 
+        if (!Directory.Exists(versions))
+            return Path.Combine(versions, $"{id}.json");
+
         foreach (var file in Directory.EnumerateFiles(versions, "*.json"))
         {
             var name = Path.GetFileNameWithoutExtension(file);

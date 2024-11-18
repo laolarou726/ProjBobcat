@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,6 +19,54 @@ namespace ProjBobcat.Class.Helper;
 
 public static class GameResourcesResolveHelper
 {
+    static string ProcessJsonString(string json)
+    {
+        json = json.Replace("\"dependencies\": [mod_minecraftForge]", "\"dependencies\": \"\"");
+        var jsonSplit = json.Split('\n');
+        if (jsonSplit.Length < 2) return json;
+
+        var startIndex = 0;
+        var endIndex = 0;
+
+        for (var i = 0; i < jsonSplit.Length; i++)
+        {
+            if (jsonSplit[i].Trim().EndsWith('{') || jsonSplit[i].Trim() == "\n" ||
+                string.IsNullOrWhiteSpace(jsonSplit[i].Trim()))
+                continue;
+
+            if (startIndex == 0)
+                if ((!jsonSplit[i].Trim().EndsWith('\"') && !jsonSplit[i].Trim().EndsWith(',')) ||
+                    jsonSplit[i].Replace(" ", string.Empty).EndsWith(":\""))
+                {
+                    startIndex = i;
+                    continue;
+                }
+
+            if (startIndex == 0) continue;
+            if ((!jsonSplit[i].Trim().StartsWith('\"') || !jsonSplit[i + 1].Trim().StartsWith('}')) &&
+                !jsonSplit[i].Trim().StartsWith("\",") && !jsonSplit[i].Trim().EndsWith("\",")) continue;
+
+            endIndex = i;
+            break;
+        }
+
+        if (startIndex == 0 || endIndex == 0) return json;
+        {
+            var tempInt = endIndex - 1;
+            for (var i = endIndex; i > startIndex; i--)
+            {
+                jsonSplit[tempInt] = $"{jsonSplit[tempInt]}\\n{jsonSplit[tempInt + 1]}";
+                tempInt -= 1;
+            }
+
+            var newJsonArray = jsonSplit.Where((s, index) => index < startIndex + 1 || index > endIndex).ToArray();
+
+            var newJson = string.Join("\n", newJsonArray);
+            return newJson;
+        }
+    }
+
+
     static async Task<GameModResolvedInfo?> GetLegacyModInfo(
         IArchiveEntry entry,
         string file,
@@ -39,7 +88,7 @@ public static class GameResourcesResolveHelper
         var infoTable = arr.Children.First();
 
         var title = infoTable.HasKey("modId")
-            ? (infoTable["modId"]?.AsString ?? "-")
+            ? infoTable["modId"]?.AsString ?? "-"
             : Path.GetFileName(file);
         var author = infoTable.HasKey("authors")
             ? infoTable["authors"]?.AsString
@@ -62,6 +111,13 @@ public static class GameResourcesResolveHelper
             List<GameModInfoModel>? model = null;
 
             await using var stream = entry.OpenEntryStream();
+            using var sr = new StreamReader(stream, leaveOpen: true);
+
+            var json = await sr.ReadToEndAsync(ct);
+            var fixedJson = ProcessJsonString(json);
+
+            await using var fixedStream = new MemoryStream(Encoding.UTF8.GetBytes(fixedJson));
+
             var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
             switch (doc.RootElement.ValueKind)
@@ -140,7 +196,8 @@ public static class GameResourcesResolveHelper
                 "[!] 数据包 JSON 异常",
                 e.Message
             };
-            return new GameModResolvedInfo(null, file, errorList.ToImmutableList(), Path.GetFileName(file), null, "Fabric", isEnabled);
+            return new GameModResolvedInfo(null, file, errorList.ToImmutableList(), Path.GetFileName(file), null,
+                "Fabric", isEnabled);
         }
     }
 
@@ -232,7 +289,7 @@ public static class GameResourcesResolveHelper
                 null,
                 "Unknown",
                 isEnabled);
-            
+
             ReturnResult:
             result = result! with { LoaderType = GetModLoaderType(archive) };
             yield return result;
@@ -272,7 +329,6 @@ public static class GameResourcesResolveHelper
         }
 
         if (packInfoEntry != null)
-        {
             try
             {
                 await using var stream = packInfoEntry.OpenEntryStream();
@@ -287,7 +343,6 @@ public static class GameResourcesResolveHelper
                 description = $"[!] 数据包 JSON 异常: {e.Message}";
                 version = -1;
             }
-        }
 
         return new GameResourcePackResolvedInfo(fileName, description, version, imageBytes);
     }
@@ -307,7 +362,6 @@ public static class GameResourcesResolveHelper
         var version = -1;
 
         if (File.Exists(infoPath))
-        {
             try
             {
                 await using var contentStream = File.OpenRead(infoPath);
@@ -322,7 +376,6 @@ public static class GameResourcesResolveHelper
                 description = $"[!] 数据包 JSON 异常: {e.Message}";
                 version = -1;
             }
-        }
 
         return new GameResourcePackResolvedInfo(fileName, description, version, imageBytes);
     }
@@ -357,11 +410,10 @@ public static class GameResourcesResolveHelper
     static GameShaderPackResolvedInfo? ResolveShaderPackFile(string file)
     {
         if (!ArchiveHelper.TryOpen(file, out var archive)) return null;
-        if (archive == null) return null;
         if (!archive.Entries.Any(e =>
-                Path.GetFileName(e.Key?.TrimEnd(Path.DirectorySeparatorChar))
+                Path.GetFileName(e.Key?.TrimEnd('/'))
                     ?.Equals("shaders", StringComparison.OrdinalIgnoreCase) ?? false))
-          return null;
+            return null;
 
         var model = new GameShaderPackResolvedInfo(Path.GetFileName(file), false);
 

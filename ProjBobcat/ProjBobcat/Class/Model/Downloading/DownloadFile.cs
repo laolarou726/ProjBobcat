@@ -1,13 +1,15 @@
 ﻿using System;
 using ProjBobcat.Event;
 
-namespace ProjBobcat.Class.Model;
+namespace ProjBobcat.Class.Model.Downloading;
 
 /// <summary>
 ///     下载文件信息类
 /// </summary>
 public class DownloadFile
 {
+    internal int PartialDownloadRetryCount;
+
     /// <summary>
     ///     下载Uri
     /// </summary>
@@ -31,7 +33,7 @@ public class DownloadFile
     /// <summary>
     ///     文件类型（仅在Lib/Asset补全时可用）
     /// </summary>
-    public ResourceType FileType { get; init; }
+    public ResourceType FileType { get; internal init; } = ResourceType.Invalid;
 
     /// <summary>
     ///     文件大小
@@ -55,7 +57,7 @@ public class DownloadFile
 
     public void OnChanged(double speed, double progress, long bytesReceived, long totalBytes)
     {
-        Changed?.Invoke(this, new DownloadFileChangedEventArgs
+        this.Changed?.Invoke(this, new DownloadFileChangedEventArgs
         {
             Speed = speed,
             ProgressPercentage = progress,
@@ -64,8 +66,8 @@ public class DownloadFile
         });
     }
 
-    public void OnCompleted(bool? success, Exception? ex, double averageSpeed)
+    public void OnCompleted(bool success, Exception? ex, double averageSpeed)
     {
-        Completed?.Invoke(this, new DownloadFileCompletedEventArgs(success, ex, averageSpeed));
+        this.Completed?.Invoke(this, new DownloadFileCompletedEventArgs(success, ex, averageSpeed));
     }
 }

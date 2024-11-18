@@ -20,6 +20,12 @@ public class GameArguments
     public IReadOnlyList<string>? AdditionalJvmArguments { get; set; }
     public IReadOnlyList<string>? AdditionalArguments { get; set; }
     public ServerSettings? ServerSettings { get; set; }
+
+    /// <summary>
+    /// Join world name (Starting from 1.20, single player only)
+    /// </summary>
+    public string? JoinWorldName { get; set; }
+
     public string? AdvanceArguments { get; set; }
 }
 
@@ -64,11 +70,11 @@ public class LaunchSettings
 
         sb
             .AppendLine()
-            .Append($"Game Name: {GameName}").AppendLine()
-            .Append($"Game Resource Path: {GameResourcePath}").AppendLine()
-            .Append($"Version: {Version}").AppendLine()
-            .Append($"Authenticator: {Authenticator?.GetType().Name ?? "-"}").AppendLine()
-            .Append($"Version Insulation: {VersionInsulation}").AppendLine()
+            .Append($"Game Name: {this.GameName}").AppendLine()
+            .Append($"Game Resource Path: {this.GameResourcePath}").AppendLine()
+            .Append($"Version: {this.Version}").AppendLine()
+            .Append($"Authenticator: {this.Authenticator?.GetType().Name ?? "-"}").AppendLine()
+            .Append($"Version Insulation: {this.VersionInsulation}").AppendLine()
             .AppendLine();
 
         return sb.ToString();

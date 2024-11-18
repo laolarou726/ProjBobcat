@@ -40,13 +40,13 @@ public class OfflineAuthenticator : IAuthenticator
             Value = "zh-cn"
         };
 
-        var uuid = PlayerUUID.FromOfflinePlayerName(Username);
+        var uuid = PlayerUUID.FromOfflinePlayerName(this.Username);
 
-        var localUuid = GuidHelper.NewGuidString();
+        var localUuid = Guid.NewGuid().ToString("N");
         var accountModel = new AccountModel
         {
             Id = uuid.ToGuid(),
-            AccessToken = GuidHelper.NewGuidString(),
+            AccessToken = Guid.NewGuid().ToString("N"),
             AccessTokenExpiresAt = DateTime.Now,
             EligibleForMigration = false,
             HasMultipleProfiles = false,
@@ -55,16 +55,16 @@ public class OfflineAuthenticator : IAuthenticator
             MinecraftProfile = new AccountProfileModel
             {
                 Id = uuid.ToString(),
-                Name = Username
+                Name = this.Username
             },
             Persistent = true,
-            RemoteId = GuidHelper.NewGuidString(),
+            RemoteId = Guid.NewGuid().ToString("N"),
             Type = "Mojang",
             UserProperites = [authProperty],
-            Username = Username
+            Username = this.Username
         };
 
-        if (!LauncherAccountParser.AddNewAccount(localUuid, accountModel, out var id))
+        if (!this.LauncherAccountParser.AddNewAccount(localUuid, accountModel, out var id))
             return new AuthResultBase
             {
                 AuthStatus = AuthStatus.Failed,
@@ -79,11 +79,11 @@ public class OfflineAuthenticator : IAuthenticator
         var result = new AuthResultBase
         {
             Id = id ?? Guid.Empty,
-            AccessToken = GuidHelper.NewGuidString(),
+            AccessToken = Guid.NewGuid().ToString("N"),
             AuthStatus = AuthStatus.Succeeded,
             SelectedProfile = new ProfileInfoModel
             {
-                Name = Username,
+                Name = this.Username,
                 UUID = uuid
             },
             User = new UserInfoModel
@@ -110,7 +110,7 @@ public class OfflineAuthenticator : IAuthenticator
     /// <returns></returns>
     public Task<AuthResultBase> AuthTaskAsync(bool userField)
     {
-        return Task.Run(() => Auth());
+        return Task.FromResult(this.Auth());
     }
 
     /// <summary>
@@ -120,6 +120,6 @@ public class OfflineAuthenticator : IAuthenticator
     [Obsolete("此方法已过时，请使用 Auth(bool) 代替。")]
     public AuthResultBase GetLastAuthResult()
     {
-        return Auth();
+        return this.Auth();
     }
 }
